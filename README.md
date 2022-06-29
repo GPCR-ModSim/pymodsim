@@ -23,7 +23,7 @@ To install **PyModSim** follow these steps:
 	
         Python 3.X (extensively tested on Python 3.10)
         Python modules:
-            - modeller 10.2
+            - modeller 10.2 - (https://salilab.org/modeller/release.html)
         AlphaFold 2.0 - (https://github.com/deepmind/alphafold)
         PPM 3.0 - (https://console.cloud.google.com/storage/browser/opm-assets/ppm3_code)
 
