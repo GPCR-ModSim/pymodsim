@@ -80,7 +80,7 @@ To install **PyModSim** follow these steps:
         	                        Orientation|PPM
         	  -s SEQUENCE, --seq SEQUENCE
         	                        Name of the sequence for which to create an homology model. -s is only required if -n = 0,
-	                        1 or 2. Use the fasta extension. (example: -s myseq.fasta)
+        	                        1 or 2. Use the fasta extension. (example: -s myseq.fasta)
         	  -p PDB, --pdb PDB     Name of the protein to process. -p is only required if -n = 2 or 3. Use the pdb extension.
         	                        (example: -p myprot.pdb)
         	  -N NTERM, --Nterm NTERM
