@@ -131,11 +131,10 @@ To install **PyModSim** follow these steps:
 
 ### Execution Modules
 
-- **commands.py**. Defines the Commands and Wrapper objects. * Commands will
-  load the  objects to be modeled, the modeling recipe, and run it. *
-  Wrapper is a  proxy for the commands. When a recipe entry is sent
-  to it this returns the command to be run.
-
+- **commands.py**. Defines the Commands and Wrapper objects. Commands will
+  load the objects, recipes, and run them. Wrapper is a proxy for the 
+  commands. When a recipe entry is sent to it this returns the command to be run.
+- **modprep.py**. Runs commands using the *modeller* module.
 
 ### Executable
 
