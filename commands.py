@@ -17,50 +17,30 @@ class Commands(object):
         self.wrapper = Wrapper()        
         self.work_dir = os.getcwd()
         self.repo_dir = self.wrapper.repo_dir
-
         self.mode = "skip"        
 
+        self.nstep = kwargs["nstep"]
+        if kwargs["sequence"]:
+            self.sequence = kwargs["sequence"]
+            self.sequence_base = kwargs["sequence"][:-6]
+        if kwargs["pdb"]:
+            self.pdb_2 = kwargs["pdb"]
+            self.pdb_3 = kwargs["pdb"]
+            self.pdb_3out = kwargs["pdb"][:-4] + "out.pdb"
+        else:
+            self.pdb_2 = "ranked_0.pdb"
+            self.pdb_3 = "refined.B99990001.pdb"
+            self.pdb_3out = "refined.B99990001out.pdb"
+        self.Nterm = kwargs["Nterm"]
+        self.Cterm = kwargs["Cterm"]
+        self.loop = kwargs["loop"]
+        self.loop_fill = kwargs["loop_fill"]
+        self.topology = kwargs["topology"]
+        
         logging.basicConfig(filename='pymodsim.log',
                             format='%(asctime)s %(message)s',
                             datefmt='%m/%d/%Y %I:%M:%S',
                             level=logging.DEBUG)
-
-        if "sequence" in kwargs.keys():
-            self.set_sequence(kwargs["sequence"])
-            self.set_sequence_base(kwargs["sequence"][:-6])
-            
-        if "pdb" in kwargs.keys():
-            self.set_pdb(kwargs["pdb"])
-
-    def set_pdb(self, value):
-        """
-        set_pdb: Sets the pdb object
-        """
-        self._pdb = value
-        
-    def get_pdb(self):
-        return self._pdb
-    pdb = property(get_pdb, set_pdb)
-
-    def set_sequence(self, value):
-        """
-        set_sequence: Sets the sequence object
-        """
-        self._sequence = value
-
-    def get_sequence(self):
-        return self._sequence
-    sequence = property(get_sequence, set_sequence)
-
-    def set_sequence_base(self, value):
-        """
-        set_sequence_base: Sets the sequence object
-        """
-        self._sequence_base = value
-
-    def get_sequence_base(self):
-        return self._sequence_base
-    sequence_base = property(get_sequence_base, set_sequence_base)
 
     def clean_pdb(self, **kwargs):
         """
@@ -78,7 +58,6 @@ class Commands(object):
                 
         tgt.close()
 
-
     def make_inp(self, **kwargs):
         """
         make_inp: Create a PPM input file (.inp)
@@ -91,15 +70,14 @@ class Commands(object):
         tgt.write("1\n")                    # number of membranes
         tgt.write("OPC\n")                  # membrane type (DOPC bilayer)
         tgt.write("planar\n")               # flat membrane
-        tgt.write("out\n")                  # N-term extracellular
+        tgt.write(self.topology + "\n")     # N-term topology
         tgt.write("A\n")                    # subunits in membrane  
-        
+
         tgt.close()
 
     def make_pir(self, **kwargs):
         """
-        make_pir: Identify and modify low-confidence regions and create a \
-        MODELLER alignment file (.pir)
+        make_pir: Identify and modify low-confidence regions and create a MODELLER alignment file (.pir)
         """
         pdb = open(os.path.join(self.work_dir, kwargs["pdb"]), "r")
         seq = open(os.path.join(self.work_dir, kwargs["seq"]), "r")
@@ -166,26 +144,52 @@ class Commands(object):
                         low_confs.append(chain)
                     if int(line[5]) not in chain:
                         chain = [int(line[5])]
-                        
+        
+        if self.Nterm:
+            if self.Nterm != "0":
+                terms.append(range(nterm, int(self.Nterm)))
+                self.broker.dispatch("Custom N-term removed from {0} to {1}".format(
+                    nterm, self.Nterm))                    
+        
+        if self.Cterm:
+            if self.Cterm != "0":
+                terms.append(range(int(self.Cterm), cterm+1))
+                self.broker.dispatch("Custom C-term removed from {0} to {1}".format(
+                    self.Cterm, cterm)) 
+        
+        if self.loop:
+            if self.loop != "0":
+                cust_loops = self.loop.split(",") 
+                for loop_ends in cust_loops:
+                    bound = loop_ends.split("-")
+                    cust_loop = range(int(bound[0]), int(bound[1])+1)
+                    loops.append(cust_loop)
+                    self.broker.dispatch("Custom loop removed from {0} to {1}".format(
+                        bound[0], bound[1]))
+            
         for low_conf in low_confs:
             # N-term removal if low_conf longer than 5 residues
-            if nterm in low_conf:
-                if len(low_conf) >= 6:
-                    terms.append(low_conf[:-5])
-                    self.broker.dispatch("Low-confidence N-term detected from {0} to {1}".format(
-                        low_conf[0], low_conf[-1]))
+            if not self.Nterm:
+                if nterm in low_conf:
+                    if len(low_conf) >= 6:
+                        terms.append(low_conf[:-5])
+                        self.broker.dispatch("Low-confidence N-term detected from {0} to {1}".format(
+                            low_conf[0], low_conf[-1]))
             #C-term removal if low_conf longer than 5 residues
-            elif cterm in low_conf:
-                if len(low_conf) >= 6:
-                    terms.append(low_conf[5:])
-                    self.broker.dispatch("Low-confidence C-term detected from {0} to {1}".format(
-                        low_conf[0], low_conf[-1]))
+            if not self.Cterm:
+                if cterm in low_conf:
+                    if len(low_conf) >= 6:
+                        terms.append(low_conf[5:])
+                        self.broker.dispatch("Low-confidence C-term detected from {0} to {1}".format(
+                            low_conf[0], low_conf[-1]))
+           
             #Loop removal if low_conf longer than 10 residues
-            else: 
-                if len(low_conf) >= 11:
-                    loops.append(low_conf)
-                    self.broker.dispatch("Low-confidence loop detected from {0} to {1}".format(
-                        low_conf[0], low_conf[-1]))
+            if not self.loop:    
+                if nterm not in low_conf and cterm not in low_conf: 
+                    if len(low_conf) >= 11:
+                        loops.append(low_conf)
+                        self.broker.dispatch("Low-confidence loop detected from {0} to {1}".format(
+                            low_conf[0], low_conf[-1]))
     
         loops.reverse()
 
@@ -200,7 +204,7 @@ class Commands(object):
             gaps =  len(term_seq) * "-"
             
             mod_seq = mod_seq.replace(term_seq, gaps)
-              
+        
         for loop in loops:                       
             for line in lines_pdb:
                 line = line.split()
@@ -209,23 +213,19 @@ class Commands(object):
                         start = [float(line[6]), float(line[7]), float(line[8])]
                     if int(line[5]) == loop[-1] and line[2] == "N":
                         end = [float(line[6]), float(line[7]), float(line[8])]
-
-            # AA countour length is between 3.4 and 4.0 Å. To allow for 
-            # flexibility in the loop, 1 AA per 2.5 Å is used. 
-            # TODO: adjust AA per Å to see effects
-            aa_dist = 2.0
-            
+        
+            aa_dist = float(self.loop_fill)           
             x = abs(start[0] - end[0])
             y = abs(start[1] - end[1])
             z = abs(start[2] - end[2])
             dist = math.sqrt(x*x + y*y + z*z)
-            loop_fill = math.ceil(dist / aa_dist)     
+            num_aa = math.ceil(dist / aa_dist)     
             
-            if loop_fill % 2 == 0:
-                keep_res = int(loop_fill / 2 - 1)
+            if num_aa % 2 == 0:
+                keep_res = int(num_aa / 2 - 1)
                 ala_count = 2
             else: 
-                keep_res = int((loop_fill - 1) / 2 - 1) 
+                keep_res = int((num_aa - 1) / 2 - 1) 
                 ala_count = 3
             
             # Leaving the first and the last AA out of the loop (for better results in 
@@ -235,7 +235,7 @@ class Commands(object):
             gaps = loop_mod + len(loop_seq) * "-"
             
             mod_seq = mod_seq.replace(loop_seq, gaps)
-            tmpl_seq = sequence[:loop[0]] + len(loop_mod) * "-" + sequence[loop[0]:]
+            tmpl_seq = tmpl_seq[:loop[0]] + len(loop_mod) * "-" + tmpl_seq[loop[0]:]
             
         mod_seq += "*"
         tmpl_seq += "*"
@@ -243,7 +243,6 @@ class Commands(object):
         return mod_seq, tmpl_seq
        
     def run_recipe(self):
-        #TODO: currently modified
         """
         run_recipe: Run selected recipes 
         """        
@@ -285,14 +284,13 @@ class Commands(object):
                 if ("options") in command:
                     f(**command["options"])
                 else:
-                    f()
-                    
+                    f()    
 
     def select_recipe(self, stage):
         """
         select_recipe: Select the recipes for each step
         """
-        self.recipe = getattr(recipes, stage)(sequence=self.sequence)
+        self.recipe = getattr(recipes, stage)()
          
     def set_options(self, options, breaks):
         """
@@ -330,6 +328,7 @@ class Commands(object):
                 shutil.copy(os.path.join(self.repo_dir, repo_file),
                             os.path.join(kwargs["tgt_dir"], repo_file))
 
+
 class Wrapper(object):
     def __init__(self, *args, **kwargs):
         self.work_dir = os.getcwd()
@@ -350,7 +349,6 @@ class Wrapper(object):
         
         #PPM variables:
         self.PPM_PATH = settings.PPM_PATH
-
 
     def generate_command(self, prgm, cmd):
         """
@@ -387,7 +385,7 @@ class Wrapper(object):
         command.extend(["--obsolete_pdbs_path=" + self.OBSOLETE_PDBS_PATH])
         command.extend(["--uniclust30_database_path=" + self.UNICLUST30_DATABASE_PATH])
         command.extend(["--uniref90_database_path=" + self.UNIREF90_DATABASE_PATH]) 
-        command.extend(["--max_template_date=2021-11-01"])
+        command.extend(["--max_template_date=" + cmd["options"]["max_template_date"]])
         command.extend(["--model_preset=monomer"])
         command.extend(["--db_preset=full_dbs"])
         
@@ -415,3 +413,4 @@ class Wrapper(object):
         out, errs = p.communicate()
 
         return out, errs
+    

@@ -2,11 +2,11 @@ import modeller
 from modeller import automodel
 import sys
 
+
 def run_modeller(**kwargs):
     """
     Refine protein structure using MODELLER
     """
-    
     default_stdout = sys.stdout
     
     sys.stdout = open("pymodsim.log", "a")
@@ -26,3 +26,4 @@ def run_modeller(**kwargs):
         a.make()
         
     sys.stdout = default_stdout
+    
