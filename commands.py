@@ -19,16 +19,17 @@ class Commands(object):
         self.repo_dir = self.wrapper.repo_dir
         self.mode = "skip"        
 
-        self.nstep = kwargs["nstep"]
         if kwargs["sequence"]:
             self.sequence = kwargs["sequence"]
             self.sequence_base = kwargs["sequence"][:-6]
         if kwargs["pdb"]:
             self.pdb_2 = kwargs["pdb"]
+        else:
+            self.pdb_2 = "ranked_0.pdb"            
+        if kwargs["pdb"] and kwargs["nstep"] != "23":
             self.pdb_3 = kwargs["pdb"]
             self.pdb_3out = kwargs["pdb"][:-4] + "out.pdb"
         else:
-            self.pdb_2 = "ranked_0.pdb"
             self.pdb_3 = "refined.B99990001.pdb"
             self.pdb_3out = "refined.B99990001out.pdb"
         self.Nterm = kwargs["Nterm"]
@@ -36,6 +37,7 @@ class Commands(object):
         self.loop = kwargs["loop"]
         self.loop_fill = kwargs["loop_fill"]
         self.topology = kwargs["topology"]
+        self.chain = kwargs["chain"]
         
         logging.basicConfig(filename='pymodsim.log',
                             format='%(asctime)s %(message)s',
@@ -71,7 +73,7 @@ class Commands(object):
         tgt.write("OPC\n")                  # membrane type (DOPC bilayer)
         tgt.write("planar\n")               # flat membrane
         tgt.write(self.topology + "\n")     # N-term topology
-        tgt.write("A\n")                    # subunits in membrane  
+        tgt.write(self.chain + "\n")        # subunits in membrane  
 
         tgt.close()
 
@@ -127,23 +129,25 @@ class Commands(object):
         loops = []
         terms = []
         
-        nterm_line = lines_pdb[0].split()
-        cterm_line = lines_pdb[len(lines_pdb)-3].split()
-        nterm = int(nterm_line[5])
-        cterm = int(cterm_line[5])
+        
+        nterm_line = lines_pdb[0]
+        
+        
+        cterm_line = lines_pdb[len(lines_pdb)-3]
+        nterm = int("".join(nterm_line[22:26]))
+        cterm = int("".join(cterm_line[22:26]))
 
         for line in lines_pdb:
-            line = line.split()
             # Only res with low model confidence (pLDDT <= 70)
-            if line[0] == "ATOM" and float(line[10]) <= float(70):
-                if int(line[5]) - 1 in chain:
-                    if int(line[5]) not in chain:
-                        chain.append(int(line[5]))
+            if "".join(line[:4]) == "ATOM" and float("".join(line[60:66])) <= float(70):
+                if int("".join(line[22:26])) - 1 in chain:
+                    if int("".join(line[22:26])) not in chain:
+                        chain.append(int("".join(line[22:26])))
                 else:
                     if chain and chain not in low_confs:
                         low_confs.append(chain)
-                    if int(line[5]) not in chain:
-                        chain = [int(line[5])]
+                    if int("".join(line[22:26])) not in chain:
+                        chain = [int("".join(line[22:26]))]
         
         if self.Nterm:
             if self.Nterm != "0":
@@ -169,12 +173,15 @@ class Commands(object):
             
         for low_conf in low_confs:
             # N-term removal if low_conf longer than 5 residues
+            incl_loop = True
+            
             if not self.Nterm:
                 if nterm in low_conf:
                     if len(low_conf) >= 6:
                         terms.append(low_conf[:-5])
                         self.broker.dispatch("Low-confidence N-term detected from {0} to {1}".format(
                             low_conf[0], low_conf[-1]))
+            
             #C-term removal if low_conf longer than 5 residues
             if not self.Cterm:
                 if cterm in low_conf:
@@ -182,15 +189,31 @@ class Commands(object):
                         terms.append(low_conf[5:])
                         self.broker.dispatch("Low-confidence C-term detected from {0} to {1}".format(
                             low_conf[0], low_conf[-1]))
-           
-            #Loop removal if low_conf longer than 10 residues
-            if not self.loop:    
-                if nterm not in low_conf and cterm not in low_conf: 
+               
+            if not self.loop:
+                if self.Nterm and self.Nterm != "0":
+                    for i in list(range(nterm, int(self.Nterm))):
+                        if i in low_conf:
+                            incl_loop = False
+                else:
+                    if nterm in low_conf:
+                        incl_loop = False
+                
+                if self.Cterm and self.Cterm != "0":
+                    for j in list(range(int(self.Cterm), cterm)):
+                        if j in low_conf:
+                            incl_loop = False
+                else:
+                    if cterm in low_conf:
+                        incl_loop = False
+                
+                if incl_loop == True:
                     if len(low_conf) >= 11:
                         loops.append(low_conf)
                         self.broker.dispatch("Low-confidence loop detected from {0} to {1}".format(
                             low_conf[0], low_conf[-1]))
-    
+                    
+                    
         loops.reverse()
 
         return terms, loops
@@ -207,12 +230,11 @@ class Commands(object):
         
         for loop in loops:                       
             for line in lines_pdb:
-                line = line.split()
-                if line[0] == "ATOM":
-                    if int(line[5]) == loop[0] and line[2] == "C":
-                        start = [float(line[6]), float(line[7]), float(line[8])]
-                    if int(line[5]) == loop[-1] and line[2] == "N":
-                        end = [float(line[6]), float(line[7]), float(line[8])]
+                if line[:4] == "ATOM":
+                    if int(line[22:26]) == loop[0] and "".join(line[11:17]).strip() == "C":
+                        start = [float(line[31:38]), float(line[39:46]), float(line[47:54])]
+                    if int(line[22:26]) == loop[-1] and "".join(line[11:17]).strip() == "N":
+                        end = [float(line[31:38]), float(line[39:46]), float(line[47:54])]
         
             aa_dist = float(self.loop_fill)           
             x = abs(start[0] - end[0])

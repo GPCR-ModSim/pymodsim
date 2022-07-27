@@ -1,0 +1,32 @@
+INITIAL DATA
+
+UniProt - P29275 (AA2BR_HUMAN)
+
+seuqence:
+aa2br_human.fasta
+	- Sequence
+
+topology:
+N-term = out 
+	- pred. by similarity
+	- Subcellular Location > Features
+
+--------------
+
+PyModSim1
+
+command:
+pymodsim -s aa2br_human.fasta -t out
+
+Low-confidence loop detected from 153 to 167
+	- keep (minor ECL)
+
+--------------
+
+PyModSim2
+
+command:
+pymodsim -n 23 -s aa2br_human.fasta -p ranked_0.pdb -l 0 -t out
+
+Result:
+	- homology.pdb

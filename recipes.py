@@ -1,3 +1,7 @@
+##########################################################################
+#                 Homology                                               #
+##########################################################################
+
 class Homology(object):
     def __init__(self, **kwargs):
         self.steps = ["set_stage_init", "alphafold", "set_stage_init2", "set_end"]
@@ -29,6 +33,10 @@ class Homology(object):
              "set_stage_init2": {"src_dir":   "sequence_base"}}          
 
 
+##########################################################################
+#                 ModPrep                                                #
+##########################################################################
+
 class ModPrep(object):
     def __init__(self, **kwargs):
         self.steps = ["make_pir", "run_modeller", "set_end"]
@@ -55,6 +63,10 @@ class ModPrep(object):
              "run_modeller":    {"knowns": "pdb_2",
                                  "mode": "mode"}}
 
+
+##########################################################################
+#                 Orientation                                            #
+##########################################################################
 
 class Orientation(object):
     def __init__(self, **kwargs):

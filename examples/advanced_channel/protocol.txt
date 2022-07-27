@@ -1,0 +1,93 @@
+INITIAL DATA
+
+UniProt - Q9UI33 (SCNBA_HUMAN)
+
+topology:
+N-term = in 
+	- pred. by curation
+	- Subcellular Location > Features
+
+seuqence:
+scnba_human.fasta
+	- Sequence
+
+sequence >= 1.000:
+	AlphaFold structure retrieved from AlphaFoldDB
+
+AlphaFold (removed header text):
+	- AF-Q9UI33-F1-model_v2
+
+-----------------------------------------------------------
+
+PyModSim1
+
+command:
+pymodsim -n 23 -s scnba_human.fasta -p AF-Q9UI33-F1-model_v2.pdb -t in
+
+Automatic low-confidence loop detection:
+Low-confidence N-term detected from 1 to 15
+Low-confidence loop detected from 38 to 69
+	- ICN-term cut N term at 65 (leaving 5 low-conf. residues)
+
+Low-confidence loop detected from 149 to 160
+	- keep (minor ECL)
+Low-confidence loop detected from 212 to 224
+	- keep (minor ECL)
+Low-confidence loop detected from 413 to 559
+	- removal correct (major ICL)
+	- cut from 418 - 554
+Low-confidence loop detected from 729 to 746
+	- keep (minor ECL)
+
+Low-confidence loop detected from 801 to 833
+Low-confidence loop detected from 851 to 1037
+	- 811 is still transmembrane
+	- cut from 806 - 1032
+
+Low-confidence loop detected from 1314 to 1325
+Low-confidence loop detected from 1327 to 1346
+	- cut from 1319 - 1341
+
+Low-confidence loop detected from 1450 to 1462
+	- keep (minor ECL)
+Low-confidence loop detected from 1563 to 1576
+	- keep (minor ECL)
+
+Low-confidence loop detected from 1608 to 1622
+Low-confidence loop detected from 1694 to 1724
+Low-confidence C-term detected from 1750 to 1791
+	- ICC-term cut C term at 1613 (leaving 5 low-conf. residiues)
+
+-----------------------------------------------------------
+
+PyModSim2
+
+command:
+pymodsim -n 23 -s scnba_human.fasta -p AF-Q9UI33-F1-model_v2.pdb -N 65 -C 1613 -l 418-554,806-1032,1319-1341 -t in
+
+Custom loop removed from 806 to 1032
+	- MODELLER places the replacement loop within the membrane.
+	- Extend TM helix to 10 low-conf. residues istead of 5
+	- lets the TM helix extend further below the membrane.
+
+-----------------------------------------------------------
+
+PyModSim3
+
+command:
+pymodsim -n 23 -s scnba_human.fasta -p AF-Q9UI33-F1-model_v2.pdb -N 65 -C 1613 -l 418-554,811-1032,1319-1341 -t in
+
+Loop placement correct, although loop length is long > increase Å/AA from 2.0 to 3.0 (reduce loops by 1/3rd)
+
+-----------------------------------------------------------
+
+PyModSim4
+
+command:
+pymodsim -n 23 -s scnba_human.fasta -p AF-Q9UI33-F1-model_v2.pdb -N 65 -C 1613 -l 418-554,811-1032,1319-1341 -f 3.0 -t in
+
+Result:
+	- homology.pdb
+
+
+
