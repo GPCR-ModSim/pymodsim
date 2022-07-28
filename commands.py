@@ -70,7 +70,7 @@ class Commands(object):
         tgt.write("no\n")                   # no heteroatoms
         tgt.write(kwargs["pdb"] + "\n")     # PDB file name
         tgt.write("1\n")                    # number of membranes
-        tgt.write("OPC\n")                  # membrane type (DOPC bilayer)
+        tgt.write("PMm\n")                  # membrane type (Plasma membrane (mammalian))
         tgt.write("planar\n")               # flat membrane
         tgt.write(self.topology + "\n")     # N-term topology
         tgt.write(self.chain + "\n")        # subunits in membrane  
