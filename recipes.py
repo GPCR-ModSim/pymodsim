@@ -39,26 +39,36 @@ class Homology(object):
 
 class ModPrep(object):
     def __init__(self, **kwargs):
-        self.steps = ["make_pir", "run_modeller", "set_end"]
+        self.steps = ["plot_conf", "make_pir", "run_modeller", "set_end"]
         
         self.recipe = \
-            {"make_pir":       {"command":  "make_pir",  # 1
+            {"plot_conf":     {"command":   "plot_conf",  # 1
+                               "options":  {"pdb": "",
+                                            "tgt": "plot_confidence.txt"}},
+                
+            "make_pir":        {"command":  "make_pir",  # 2
                                 "options": {"seq": "",
                                             "pdb": "",
-                                            "tgt": "alignment.pir"}},
+                                            "tgt1": "alignment.pir",
+                                            "tgt2": "refinement.txt",
+                                            "tgt3": "alignment.txt"}},
                          
-            "run_modeller":    {"command":   "run_modeller",  # 2
+            "run_modeller":    {"command":   "run_modeller",  # 3
                                 "options":  {"alnfile": "alignment.pir",
                                              "knowns":  "",
                                              "mode":    ""}},
                         
-            "set_end":         {"command":    "set_stage_init",  # 3
+            "set_end":         {"command":    "set_stage_init",  # 4
                                 "options":   {"src_dir":    "",
-                                              "src_files": ["refined.B99990001.pdb"],
+                                              "src_files": ["plot_confidence.txt",
+                                                            "alignment.txt",
+                                                            "refinement.txt",
+                                                            "refined.B99990001.pdb"],
                                               "tgt_dir":    "finalOutput"}}}                                
             
         self.breaks = \
-            {"make_pir":        {"seq": "sequence",
+            {"plot_conf":       {"pdb": "pdb_2"},
+             "make_pir":        {"seq": "sequence",
                                  "pdb": "pdb_2"},
              "run_modeller":    {"knowns": "pdb_2",
                                  "mode": "mode"}}

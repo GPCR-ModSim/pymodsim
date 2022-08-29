@@ -93,46 +93,60 @@ class Commands(object):
             if line[0] != ">":
                 sequence += line.replace("\n", "")
                 
-        terms, loops = self.make_pir_identify(lines_pdb)  
+        terms, loops = self.make_pir_identify(lines_pdb, kwargs["tgt2"])  
         if len(terms) or len(loops) != 0:
             self.mode = "run"
         
         mod_seq, tmpl_seq = self.make_pir_modify(terms, loops, lines_pdb, sequence)
 
-        tgt = open(os.path.join(self.work_dir, kwargs["tgt"]), "w") 
+        tgt1 = open(os.path.join(self.work_dir, kwargs["tgt1"]), "w") 
+        tgt3 = open(os.path.join(self.work_dir, kwargs["tgt3"]), "w")
         
-        tgt.write(f'>P1;{kwargs["pdb"]}\n')
-        tgt.write(f'structure:{kwargs["pdb"]}:FIRST:@:LAST:@::::\n')
+        tgt1.write(f'>P1;{kwargs["pdb"]}\n')
+        tgt1.write(f'structure:{kwargs["pdb"]}:FIRST:@:LAST:@::::\n')
 
         new_line = 0
         for aa in tmpl_seq:
-            tgt.write(aa)            
+            tgt1.write(aa)            
             new_line += 1
             if (new_line % 60) == 0:
-                tgt.write("\n")
+                tgt1.write("\n")
 
-        tgt.write("\n>P1;refined\n")
-        tgt.write("sequence:::::::::\n")
+        tgt1.write("\n>P1;refined\n")
+        tgt1.write("sequence:::::::::\n")
 
         new_line = 0
         for aa in mod_seq:
-            tgt.write(aa)  
+            tgt1.write(aa)  
             new_line += 1
             if (new_line % 60) == 0:
-                tgt.write("\n")
+                tgt1.write("\n")
 
-        tgt.close()
+        tgt3.write("tmpl_ID\ttmpl_AA\tref_ID\tref_AA\n")
+        tmpl_count = ref_count = 0
+        for i in range(len(tmpl_seq)-1):
+            tmpl_ID = ref_ID = "-"
+            if tmpl_seq[i] != "-":
+                tmpl_count += 1
+                tmpl_ID = tmpl_count
+            if mod_seq[i] != "-":
+                ref_count += 1
+                ref_ID = ref_count
+            tgt3.write(str(tmpl_seq[i]) + "\t" + str(tmpl_ID) + "\t" + \
+                       str(mod_seq[i]) + "\t" + str(ref_ID) + "\n")
 
-    def make_pir_identify(self, lines_pdb):
+        tgt1.close()
+        tgt3.close()
+
+    def make_pir_identify(self, lines_pdb, tgt):
+        tgt2 = open(os.path.join(self.work_dir, tgt), "w")
+        
         chain = []
         low_confs = []
         loops = []
         terms = []
         
-        
         nterm_line = lines_pdb[0]
-        
-        
         cterm_line = lines_pdb[len(lines_pdb)-3]
         nterm = int("".join(nterm_line[22:26]))
         cterm = int("".join(cterm_line[22:26]))
@@ -152,12 +166,16 @@ class Commands(object):
         if self.Nterm:
             if self.Nterm != "0":
                 terms.append(range(nterm, int(self.Nterm)))
+                tgt2.write("Custom N-term removed from {0} to {1}\n".format(
+                    nterm, self.Nterm))
                 self.broker.dispatch("Custom N-term removed from {0} to {1}".format(
                     nterm, self.Nterm))                    
         
         if self.Cterm:
             if self.Cterm != "0":
                 terms.append(range(int(self.Cterm), cterm+1))
+                tgt2.write("Custom C-term removed from {0} to {1}\n".format(
+                    self.Cterm, cterm))                 
                 self.broker.dispatch("Custom C-term removed from {0} to {1}".format(
                     self.Cterm, cterm)) 
         
@@ -168,6 +186,8 @@ class Commands(object):
                     bound = loop_ends.split("-")
                     cust_loop = range(int(bound[0]), int(bound[1])+1)
                     loops.append(cust_loop)
+                    tgt2.write("Custom loop removed from {0} to {1}\n".format(
+                        bound[0], bound[1]))
                     self.broker.dispatch("Custom loop removed from {0} to {1}".format(
                         bound[0], bound[1]))
             
@@ -179,6 +199,8 @@ class Commands(object):
                 if nterm in low_conf:
                     if len(low_conf) >= 6:
                         terms.append(low_conf[:-5])
+                        tgt2.write("Low-confidence N-term detected from {0} to {1}\n".format(
+                            low_conf[0], low_conf[-1]))                      
                         self.broker.dispatch("Low-confidence N-term detected from {0} to {1}".format(
                             low_conf[0], low_conf[-1]))
             
@@ -187,6 +209,8 @@ class Commands(object):
                 if cterm in low_conf:
                     if len(low_conf) >= 6:
                         terms.append(low_conf[5:])
+                        tgt2.write("Low-confidence C-term detected from {0} to {1}\n".format(
+                            low_conf[0], low_conf[-1]))
                         self.broker.dispatch("Low-confidence C-term detected from {0} to {1}".format(
                             low_conf[0], low_conf[-1]))
                
@@ -210,11 +234,15 @@ class Commands(object):
                 if incl_loop == True:
                     if len(low_conf) >= 11:
                         loops.append(low_conf)
+                        tgt2.write("Low-confidence loop detected from {0} to {1}\n".format(
+                            low_conf[0], low_conf[-1]))
                         self.broker.dispatch("Low-confidence loop detected from {0} to {1}".format(
                             low_conf[0], low_conf[-1]))
                     
                     
         loops.reverse()
+        
+        tgt2.close()
 
         return terms, loops
     
@@ -263,7 +291,64 @@ class Commands(object):
         tmpl_seq += "*"
 
         return mod_seq, tmpl_seq
-       
+      
+    def plot_conf(self, **kwargs):
+        """
+        plot_conf: Create an AF confidence plot (res_ID vs pLDDT)
+        """
+        pdb = open(kwargs["pdb"], "r")
+        lines = pdb.readlines()
+        
+        res_list = []
+        conf_list = []
+
+        for line in lines:
+            try: 
+                pLDDT = line[60:66]
+                res = line[22:26]
+                if res not in res_list:
+                    res_list.append(res)
+                    conf_list.append(float(pLDDT))
+
+            except: IndexError
+
+        conf_vh = conf_h = conf_l = conf_vl = 0
+
+        for pLDDT in conf_list:
+            if pLDDT >= 90:
+                conf_vh += 1
+            elif pLDDT >= 70:
+                conf_h += 1
+            elif pLDDT >= 50:
+                conf_l += 1
+            else:
+                conf_vl += 1
+
+        avg_pLDDT = round(sum(conf_list) / len(conf_list), 2)     
+
+        per_vh = round(conf_vh / len(conf_list) * 100, 1)
+        per_h = round(conf_h / len(conf_list) * 100, 1)
+        per_l = round(conf_l / len(conf_list) * 100, 1)
+        per_vl = round(conf_vl / len(conf_list) * 100, 1)
+
+        tgt = open(kwargs["tgt"], "w")
+
+        tgt.write("Confidence Report: " + str(kwargs["pdb"]) + "\n\n" + \
+                  "Average pLDDT: " + str(avg_pLDDT) + "\n\n" + \
+                  "Model Confidence:\n" + \
+                  "Very high (pLDDT > 90): " + str(per_vh) + "%\n" + \
+                  "High (90 > pLDDT > 70): " + str(per_h) + "%\n" + \
+                  "Low (70 > pLDDT > 50):  " + str(per_l) + "%\n" + \
+                  "Very low (pLDDT < 50):  " + str(per_vl) + "%\n\n" + \
+                  "res_ID\tpLDDT\n")
+            
+        for i in range(len(conf_list)):
+            tgt.write(str(res_list[i]) + "\t" + str(conf_list[i]) + "\n")          
+            
+        pdb.close()
+        tgt.close()
+
+      
     def run_recipe(self):
         """
         run_recipe: Run selected recipes 

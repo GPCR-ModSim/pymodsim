@@ -52,9 +52,10 @@ class Run(object):
                 dirs_to_unlink.append(target)
         
         if self.nstep in {"0", "2", "23"}:
-            unlink_files = ["alignment.pir", "refined.B99990001.pdb", 
+            unlink_files = ["alignment.pir", "alignment.txt", 
+                            "plot_confidence.txt", "refined.B99990001.pdb", 
                             "refined.D00000001", "refined.ini", "refined.rsr",
-                            "refined.sch", "refined.V99990001"]
+                            "refined.sch", "refined.V99990001", "refinement.txt"]
             for target in unlink_files:
                 to_unlink.append(target)
    
