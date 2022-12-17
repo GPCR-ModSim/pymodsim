@@ -66,50 +66,50 @@ To install **PyModSim** follow these steps:
 
     You should obtain the following help output:
 	
-	usage: pymodsim [-h] [-v] [-n NSTEP] [-s SEQUENCE] [-p PDB] [-N NTERM] [-C CTERM] [-l LOOP]
-	                [-f LOOP_FILL] [-t TOPOLOGY] [-c CHAIN]
+        usage: pymodsim [-h] [-v] [-n NSTEP] [-s SEQUENCE] [-p PDB] [-N NTERM] [-C CTERM] [-l LOOP]
+                [-f LOOP_FILL] [-t TOPOLOGY] [-c CHAIN]
 	
-	== Create prepared homology models given a sequence. ==
-	
-	options:
-	  -h, --help            show this help message and exit
-	  -v, --version         show program's version number and exit
-	  -n NSTEP, --nstep NSTEP
-	                        PyModSim steps you wish to execute. This allowes you modify the
-	                        model preparation steps - see documentation Options: (0) Full, (1)
-	                        Homology|AlphaFold, (2) ModPrep|MODELLER, (3) Orientation|PPM, and
-	                        (23) ModPrep+Orientation
-	  -s SEQUENCE, --seq SEQUENCE
-	                        Name of the sequence for which to create an homology model. -s is
-	                        only required if -n = 0, 1 or 2. Use the fasta extension. (example:
-	                        -s myseq.fasta)
-	  -p PDB, --pdb PDB     Name of the protein to process. -p is only required if -n = 2 or 3.
-	                        Use the pdb extension. (example: -p myprot.pdb)
-	  -N NTERM, --Nterm NTERM
-	                        Residue number at which to cut the N-terminus. Note: the chain up
-	                        AND including the given residue will be removed. -N is only used if
-	                        -n = 2. If you wish to use the default cutoff, don't specify -N. If
-	                        you wish not to cut the N-term: set -N = 0
-	  -C CTERM, --Cterm CTERM
-	                        Residue number at which to cut the C-terminus. Note: the chain from
-	                        AND including the given residue will be removed. -C is only used if
-	                        -n = 2. If you wish to use the default cutoff, don't specify -C. If
-	                        you wish not to cut the C-term: set -C = 0
-	  -l LOOP, --loop LOOP  Residue numbers at which to cut loop(s). Define the first and last
-	                        residue of the loop you wish to cut ('-' delimited) If there are
-	                        multiple loops to cut, delimit the loop cuts with a ',' (example: -l
-	                        101-131,230-250). If you do not with to cut any loops: set -l = 0
-	  -f LOOP_FILL, --loop_fill LOOP_FILL
-	                        Amount of ≈ per AA to fill cut loops. The total distance is
-	                        calculated from the coordinates of the remaining residues. The AA
-	                        contour length is 3.4-4.0 ≈, To allow for flexibility in the loop,
-	                        2.0 ≈/AA (default) is suggested. (example: -f 2.0)
-	  -t TOPOLOGY, --topology TOPOLOGY
-	                        Indicate the topology of the N-term within the protein structure.
-	                        'out': extracellular N-term (default), 'in': intracellular N-term.
-	  -c CHAIN, --chain CHAIN
-	                        Only use if -n = 3 (i.e. only PPM). If more than 1 chain, add a
-	                        comma-seperated list of the chain identifiers. (example: -c A,B,C)
+        == Create prepared homology models given a sequence. ==
+        
+        options:
+          -h, --help            show this help message and exit
+          -v, --version         show program's version number and exit
+          -n NSTEP, --nstep NSTEP
+                                PyModSim steps you wish to execute. This allowes you modify the
+                                model preparation steps - see documentation Options: (0) Full, (1)
+                                Homology|AlphaFold, (2) ModPrep|MODELLER, (3) Orientation|PPM, and
+                                (23) ModPrep+Orientation
+          -s SEQUENCE, --seq SEQUENCE
+                                Name of the sequence for which to create an homology model. -s is
+                                only required if -n = 0, 1 or 2. Use the fasta extension. (example:
+                                -s myseq.fasta)
+          -p PDB, --pdb PDB     Name of the protein to process. -p is only required if -n = 2 or 3.
+                                Use the pdb extension. (example: -p myprot.pdb)
+          -N NTERM, --Nterm NTERM
+                                Residue number at which to cut the N-terminus. Note: the chain up
+                                AND including the given residue will be removed. -N is only used if
+                                -n = 2. If you wish to use the default cutoff, don't specify -N. If
+                                you wish not to cut the N-term: set -N = 0
+          -C CTERM, --Cterm CTERM
+                                Residue number at which to cut the C-terminus. Note: the chain from
+                                AND including the given residue will be removed. -C is only used if
+                                -n = 2. If you wish to use the default cutoff, don't specify -C. If
+                                you wish not to cut the C-term: set -C = 0
+          -l LOOP, --loop LOOP  Residue numbers at which to cut loop(s). Define the first and last
+                                residue of the loop you wish to cut ('-' delimited) If there are
+                                multiple loops to cut, delimit the loop cuts with a ',' (example: -l
+                                101-131,230-250). If you do not with to cut any loops: set -l = 0
+          -f LOOP_FILL, --loop_fill LOOP_FILL
+                                Amount of √Ö per AA to fill cut loops. The total distance is
+                                calculated from the coordinates of the remaining residues. The AA
+                                contour length is 3.4-4.0 √Ö, To allow for flexibility in the loop,
+                                2.0 √Ö/AA (default) is suggested. (example: -f 2.0)
+          -t TOPOLOGY, --topology TOPOLOGY
+                                Indicate the topology of the N-term within the protein structure.
+                                'out': extracellular N-term (default), 'in': intracellular N-term.
+          -c CHAIN, --chain CHAIN
+                                Only use if -n = 3 (i.e. only PPM). If more than 1 chain, add a
+                                comma-seperated list of the chain identifiers. (example: -c A,B,C)
 	
 3.  Updates are very easy thanks to the git versioning system. Once
     **PyModSim** has been downloaded (cloned) into its own *pymodsim* folder 
@@ -121,12 +121,12 @@ To install **PyModSim** follow these steps:
 5.  To make sure that your AlphaFold and PPM installation is understood by
     **PyModSim** you will need to specify the path to where the sofware is
     installed in your system. To do this you will need to edit the
-    settings.py file with any text editor (ìviî and ìemacsî are common
+    settings.py file with any text editor (‚Äúvi‚Äù and ‚Äúemacs‚Äù are common
     options in the unix environment). Make sure that only one line is
     uncommented, looking like: PPM_PATH = /apps/PPM_3.0 Provided that in 
     your case PPM is installed in /apps. The program
     will prepend this line to the binaries names, so calling
-    ì/apps/PPM_3.0/immers should point to that binary.  
+    ‚Äú/apps/PPM_3.0/immers should point to that binary.  
 
 
 ### Auxiliary Modules
