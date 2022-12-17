@@ -113,4 +113,18 @@ class Orientation(object):
             {"make_inp":        {"pdb": "pdb_3"},
              "clean_pdb":       {"src": "pdb_3out"},
              "set_end1":        {"src_files": "pdb_3out"}}
+
+
+##########################################################################
+#                 Collect All Results & Output                           #
+##########################################################################
+class CollectResults(object):
+    def __init__(self, **kwargs):
+        self.steps = ["tar_out"]
+
+        self.recipe = \
+            {"tar_out":         {"command": "tar_out",  # 1
+                                "options": {"src_dir": "finalOutput",
+                                            "tgt":     "Model_output.tgz"}}}
             
+        self.breaks = {}

@@ -78,15 +78,15 @@ class Run(object):
         Run PyModSim
         """
         if self.nstep == "0":
-            steps = ["Homology", "ModPrep", "Orientation"]
+            steps = ["Homology", "ModPrep", "Orientation", "CollectResults"]
         if self.nstep == "1":
-            steps = ["Homology"]
+            steps = ["Homology", "CollectResults"]
         if self.nstep == "2":
-            steps = ["ModPrep"]
+            steps = ["ModPrep", "CollectResults"]
         if self.nstep == "23":
-            steps = ["ModPrep", "Orientation"]
+            steps = ["ModPrep", "Orientation", "CollectResults"]
         if self.nstep == "3":
-            steps = ["Orientation"]
+            steps = ["Orientation", "CollectResults"]
 
         for step in steps:
             self.cmd.select_recipe(stage=step)

@@ -4,6 +4,7 @@ import math
 import os
 import shutil
 import subprocess
+import tarfile
 
 import broker
 import modprep
@@ -435,6 +436,20 @@ class Commands(object):
                 shutil.copy(os.path.join(self.repo_dir, repo_file),
                             os.path.join(kwargs["tgt_dir"], repo_file))
 
+    def tar_out(self, src_dir, tgt):
+        """
+        Tar everything in a src_dir to the tar_file
+        """
+        t_f = tarfile.open(tgt, mode="w:gz")
+        base_dir = os.getcwd()
+        os.chdir(src_dir) # To avoid the include of all parent dirs
+        
+        for to_tar in os.listdir(os.path.join(base_dir, src_dir)):
+            t_f.add(to_tar)
+            
+        t_f.close()
+        os.chdir(base_dir)
+        
 
 class Wrapper(object):
     def __init__(self, *args, **kwargs):
