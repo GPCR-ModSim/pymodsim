@@ -1,3 +1,4 @@
+from Bio.PDB import PDBParser, Superimposer, PDBIO
 import functools
 import logging
 import math
@@ -45,6 +46,36 @@ class Commands(object):
                             datefmt='%m/%d/%Y %I:%M:%S',
                             level=logging.DEBUG)
 
+    def superimpose(self, **kwargs):
+        """
+        superimpose: superimpose the initial protein complex (.pdb) file with the PPM-aligned protein
+        """
+        parser = PDBParser()
+        fixed = parser.get_structure("fixed", os.path.join(self.work_dir, kwargs["src"]))
+        moving = parser.get_structure("moving", os.path.join(self.work_dir, kwargs["pdb"]))
+
+        # Select the first models in each structure for superimposing
+        model1 = fixed[0]
+        model2 = moving[0]
+
+        chain1 = list(model1.get_chains())[0]
+        chain2 = list(model2.get_chains())[0]
+
+        atoms1 = [atom for atom in chain1.get_atoms() if atom.name == "CA"]
+        atoms2 = [atom for atom in chain2.get_atoms() if atom.name == "CA"]
+
+        # Superimposer objects
+        super_imposer = Superimposer()
+        super_imposer.set_atoms(atoms1, atoms2)
+        super_imposer.apply(model2.get_atoms())
+        logging.debug("RMSD: " + str(super_imposer.rms))
+
+        # Save superimposed objects
+        io = PDBIO()
+        io.set_structure(moving)
+        io.save(os.path.join(self.work_dir, kwargs["tgt"]))
+
+
     def clean_pdb(self, **kwargs):
         """
         clean_pdb: Remove membrane from pdb
@@ -59,6 +90,34 @@ class Commands(object):
             if line[0:6] != "HETATM":
                 tgt.write(line)
                 
+        tgt.close()
+
+    def get_protein(self, **kwargs):
+        """
+        get_protein: Get protein structure (.pdb) from a protein complex file (.pdb)
+        """
+        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "CYS", "CYX", "GLN", "GLU", "GLY", "HIS", 
+                             "HIE", "HID", "HIP", "HISE", "HISD", "HISH", "ILE", "LEU", "LYS", 
+                             "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", ]
+        
+        tgt = open(os.path.join(self.work_dir, kwargs["tgt"]), "w")
+
+        with open(os.path.join(self.work_dir, kwargs["pdb"]), "r") as src:
+            chain = 0
+            for line in src:
+                if line.startswith("TER"):
+                    tgt.write(line)
+                    chain += 1    
+                      
+                if line.startswith("ATOM") or line.startswith("HETATM"):
+                    # add protein chain IDs
+                    if line[21] == ' ':
+                        line = line[:21] + (chr(ord('A') + chain) + line[22:])
+                                            
+                    # only save protein residues    
+                    res_name = line[17:21].strip()
+                    if res_name in protein_res_names:
+                        tgt.write(line) 
         tgt.close()
 
     def make_inp(self, **kwargs):

@@ -13,7 +13,7 @@ You can download any version of **PyModSim** by cloning the repository to your
 local machine using git.  
 
 You will need to create a  free personal account at github and send
-and  e-mail  to:  [r.l.van.den.broek@umail.leidenuniv.nl](r.l.van.den.broek@umail.leidenuniv.nl) 
+and  e-mail  to:  [r.l.van.den.broek@lacdr.leidenuniv.nl](r.l.van.den.broek@lacdr.leidenuniv.nl) 
 requesting access to the code. After request processing from us you will be
 given access to the free repository.  
 
@@ -24,12 +24,13 @@ To install **PyModSim** follow these steps:
         Python 3.X (extensively tested on Python 3.10)
         Python modules:
             - modeller 10.2 (https://salilab.org/modeller/release.html)
+            - biopython 1.81 (https://biopython.org/wiki/Download)
         AlphaFold 2.0 - (https://github.com/deepmind/alphafold)
         PPM 3.0 - (https://console.cloud.google.com/storage/browser/opm-assets/ppm3_code)
 
 1.  Clone **PyModSim** for Python 3.X with the *modeller* module:  
 
-        git clone https://username@github.com/rlvandenbroek/pymodsim.git
+        git clone https://username@github.com/GPCR-ModSim/pymodsim.git
 
     Make sure to change *username* to the one you have created at
     github.  
