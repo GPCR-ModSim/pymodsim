@@ -50,19 +50,29 @@ class Commands(object):
         """
         superimpose: superimpose the initial protein complex (.pdb) file with the PPM-aligned protein
         """
+        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", 
+                             "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", ]
+
         parser = PDBParser()
         fixed = parser.get_structure("fixed", os.path.join(self.work_dir, kwargs["src"]))
         moving = parser.get_structure("moving", os.path.join(self.work_dir, kwargs["pdb"]))
 
-        # Select the first models in each structure for superimposing
+        # Select the first model in each structure
         model1 = fixed[0]
         model2 = moving[0]
 
-        chain1 = list(model1.get_chains())[0]
-        chain2 = list(model2.get_chains())[0]
+        # Function to get CA atoms from a chain
+        def get_ca_atoms(chain):
+            return [atom for atom in chain.get_atoms() if atom.name == "CA" and atom.get_parent().get_resname() in protein_res_names]
 
-        atoms1 = [atom for atom in chain1.get_atoms() if atom.name == "CA"]
-        atoms2 = [atom for atom in chain2.get_atoms() if atom.name == "CA"]
+        # Get CA atoms from all chains
+        atoms1 = [atom for chain in model1.get_chains() for atom in get_ca_atoms(chain)]
+        atoms2 = [atom for chain in model2.get_chains() for atom in get_ca_atoms(chain)]
+
+        #atoms1 = [atom for atom in chain1.get_atoms() if atom.name == "CA" and atom.get_parent().get_resname() in protein_res_names]
+        logging.debug("Atoms fixed: " + str(len(atoms1)))
+        #atoms2 = [atom for atom in chain2.get_atoms() if atom.name == "CA" and atom.get_parent().get_resname() in protein_res_names]
+        logging.debug("Atoms moving: " + str(len(atoms2)))
 
         # Superimposer objects
         super_imposer = Superimposer()
@@ -96,9 +106,8 @@ class Commands(object):
         """
         get_protein: Get protein structure (.pdb) from a protein complex file (.pdb)
         """
-        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "CYS", "CYX", "GLN", "GLU", "GLY", "HIS", 
-                             "HIE", "HID", "HIP", "HISE", "HISD", "HISH", "ILE", "LEU", "LYS", 
-                             "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", ]
+        protein_res_names = ["ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", 
+                             "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", ]
         
         tgt = open(os.path.join(self.work_dir, kwargs["tgt"]), "w")
 
