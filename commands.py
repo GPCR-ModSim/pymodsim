@@ -55,7 +55,11 @@ class Commands(object):
 
         parser = PDBParser()
         fixed = parser.get_structure("fixed", os.path.join(self.work_dir, kwargs["src"]))
-        moving = parser.get_structure("moving", os.path.join(self.work_dir, kwargs["pdb"]))
+        
+        if os.path.exists(os.path.join(self.work_dir, kwargs["pdb"])):
+            moving = parser.get_structure("moving", os.path.join(self.work_dir, kwargs["pdb"]))
+        else:
+            moving = parser.get_structure("moving", os.path.join(self.work_dir, kwargs["pdb_backup"]))
 
         # Select the first model in each structure
         model1 = fixed[0]
@@ -130,7 +134,12 @@ class Commands(object):
         
         tgt = open(os.path.join(self.work_dir, kwargs["tgt"]), "w")
 
-        with open(os.path.join(self.work_dir, kwargs["pdb"]), "r") as src:
+        if os.path.exists(os.path.join(self.work_dir, kwargs["pdb"])):
+            path_pdb = os.path.join(self.work_dir, kwargs["pdb"])
+        else:
+            path_pdb = os.path.join(self.work_dir, kwargs["pdb_backup"])
+
+        with open(path_pdb, "r") as src:
             chain = 0
             for line in src:
                 if line.startswith("TER"):

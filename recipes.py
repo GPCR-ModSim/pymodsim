@@ -4,16 +4,16 @@
 
 class Homology(object):
     def __init__(self, **kwargs):
-        self.steps = ["set_stage_init", "clean_fasta", "alphafold", "set_stage_init2", "set_end"]
+        self.steps = ["clean_fasta", "set_stage_init", "alphafold", "set_stage_init2", "set_end"]
  
         self.recipe = \
-            {"set_stage_init":  {"command":    "set_stage_init",  # 1
+            {"clean_fasta":     {"command":    "clean_fasta",  # 1
+                                 "options":   {"seq":  ""}},
+                
+             "set_stage_init":  {"command":    "set_stage_init",  # 2
                                  "options":   {"src_dir":    "",
                                                "src_files":  "",
                                                "tgt_dir":    "sequences"}},
-
-             "clean_fasta":     {"command":    "clean_fasta",  # 2
-                                 "options":   {"seq":  ""}},
 
              "alphafold":       {"alphafold":  "alphafold",  # 3
                                  "options":   {"seq": "",
@@ -30,8 +30,8 @@ class Homology(object):
                                                "tgt_dir":    "finalOutput"}}}
                                  
         self.breaks = \
-            {"set_stage_init":  {"src_files": "sequence"},
-             "clean_fasta"      {"seq":       "sequence"},
+            {"clean_fasta"      {"seq":       "sequence"},
+             "set_stage_init":  {"src_files": "sequence"},
              "alphafold":       {"seq":       "sequence"},
              "set_stage_init2": {"src_dir":   "sequence_base"}}          
 
@@ -42,26 +42,29 @@ class Homology(object):
 
 class ModPrep(object):
     def __init__(self, **kwargs):
-        self.steps = ["plot_conf", "make_pir", "run_modeller", "set_end"]
+        self.steps = ["clean_fasta", "plot_conf", "make_pir", "run_modeller", "set_end"]
         
         self.recipe = \
-            {"plot_conf":     {"command":   "plot_conf",  # 1
-                               "options":  {"pdb": "",
-                                            "tgt": "plot_confidence.txt"}},
+           {"clean_fasta":     {"command":  "clean_fasta",  # 1
+                                "options": {"seq":  ""}},
+            
+            "plot_conf":       {"command":  "plot_conf",  # 2
+                                "options": {"pdb": "",
+                                             "tgt": "plot_confidence.txt"}},
                 
-            "make_pir":        {"command":  "make_pir",  # 2
+            "make_pir":        {"command":  "make_pir",  # 3
                                 "options": {"seq": "",
                                             "pdb": "",
                                             "tgt1": "alignment.pir",
                                             "tgt2": "refinement.txt",
                                             "tgt3": "alignment.txt"}},
                          
-            "run_modeller":    {"command":   "run_modeller",  # 3
+            "run_modeller":    {"command":   "run_modeller",  # 4
                                 "options":  {"alnfile": "alignment.pir",
                                              "knowns":  "",
                                              "mode":    ""}},
                         
-            "set_end":         {"command":    "set_stage_init",  # 4
+            "set_end":         {"command":    "set_stage_init",  # 5
                                 "options":   {"src_dir":    "",
                                               "src_files": ["plot_confidence.txt",
                                                             "alignment.txt",
@@ -70,7 +73,8 @@ class ModPrep(object):
                                               "tgt_dir":    "finalOutput"}}}                                
             
         self.breaks = \
-            {"plot_conf":       {"pdb": "pdb_2"},
+            {"clean_fasta"      {"seq": "sequence"},
+             "plot_conf":       {"pdb": "pdb_2"},
              "make_pir":        {"seq": "sequence",
                                  "pdb": "pdb_2"},
              "run_modeller":    {"knowns": "pdb_2",
@@ -93,6 +97,7 @@ class Orientation(object):
              
              "get_protein":     {"command":  "get_protein",  # 2
                                  "options": {"pdb": "",
+                                             "pdb_backup": "",
                                              "tgt": "protein_stripped.pdb"}},
 
              "make_inp":        {"command":  "make_inp",  # 3
@@ -108,6 +113,7 @@ class Orientation(object):
              
              "superimpose":     {"command":  "superimpose",  # 6
                                  "options": {"pdb": "",
+                                             "pdb_backup": "",
                                              "src": "protein_aligned.pdb",
                                              "tgt": "homology.pdb"}},
 
@@ -124,8 +130,10 @@ class Orientation(object):
                                                "tgt_dir":    "finalOutput"}}}
             
         self.breaks = \
-            {"get_protein":     {"pdb": "pdb_3"},
-             "superimpose":     {"pdb": "pdb_3"},
+            {"get_protein":     {"pdb": "pdb_3",
+                                 "pdb_backup": "pdb_2"},
+             "superimpose":     {"pdb": "pdb_3",
+                                 "pdb_backup": "pdb_2"},
              "set_end1":        {"src_files": "pdb_3"}}
 
 
