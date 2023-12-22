@@ -30,7 +30,7 @@ class Homology(object):
                                                "tgt_dir":    "finalOutput"}}}
                                  
         self.breaks = \
-            {"clean_fasta"      {"seq":       "sequence"},
+            {"clean_fasta":     {"seq":       "sequence"},
              "set_stage_init":  {"src_files": "sequence"},
              "alphafold":       {"seq":       "sequence"},
              "set_stage_init2": {"src_dir":   "sequence_base"}}          
@@ -73,7 +73,7 @@ class ModPrep(object):
                                               "tgt_dir":    "finalOutput"}}}                                
             
         self.breaks = \
-            {"clean_fasta"      {"seq": "sequence"},
+            {"clean_fasta":      {"seq": "sequence"},
              "plot_conf":       {"pdb": "pdb_2"},
              "make_pir":        {"seq": "sequence",
                                  "pdb": "pdb_2"},
