@@ -86,6 +86,25 @@ class Commands(object):
         io.save(os.path.join(self.work_dir, kwargs["tgt"]))
 
 
+    def clean_fasta(self, **kwargs):
+        """
+        clean_pdb: Check if fasta is constructed correctly
+        """
+        with open(os.path.join(self.work_dir, kwargs["seq"]), "r") as file:
+            lines = file.readlines()
+
+        # Check if the first line starts with '>'
+        if not lines[0].startswith('>'):
+            lines.insert(0, '>empty_header\n')
+
+        # Keep the first line and any line not starting with '>'
+        processed_lines = [lines[0]] + [line for line in lines[1:] if not line.startswith('>')]
+
+        # Write the processed lines to a new file
+        with open(os.path.join(self.work_dir, kwargs["seq"]), 'w') as output_file:
+            output_file.writelines(processed_lines)
+
+
     def clean_pdb(self, **kwargs):
         """
         clean_pdb: Remove membrane from pdb

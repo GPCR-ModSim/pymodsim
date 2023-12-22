@@ -4,31 +4,34 @@
 
 class Homology(object):
     def __init__(self, **kwargs):
-        self.steps = ["set_stage_init", "alphafold", "set_stage_init2", "set_end"]
+        self.steps = ["set_stage_init", "clean_fasta", "alphafold", "set_stage_init2", "set_end"]
  
         self.recipe = \
             {"set_stage_init":  {"command":    "set_stage_init",  # 1
                                  "options":   {"src_dir":    "",
                                                "src_files":  "",
                                                "tgt_dir":    "sequences"}},
-                             
-             "alphafold":       {"alphafold":  "alphafold",  # 2
+
+             "clean_fasta":     {"command":    "clean_fasta",  # 2
+                                 "options":   {"seq":  ""}},
+
+             "alphafold":       {"alphafold":  "alphafold",  # 3
                                  "options":   {"seq": "",
                                                "max_template_date": "2021-11-01"}},
              
-             "set_stage_init2": {"command":    "set_stage_init",  # 3
+             "set_stage_init2": {"command":    "set_stage_init",  # 4
                                  "options":   {"src_dir":    "",
                                                "src_files": ["ranked_0.pdb"],
                                                "tgt_dir":    "."}},
              
-             
-             "set_end":         {"command":    "set_stage_init",  # 4
+             "set_end":         {"command":    "set_stage_init",  # 5
                                  "options":   {"src_dir":    "",
                                                "src_files": ["ranked_0.pdb"],
                                                "tgt_dir":    "finalOutput"}}}
                                  
         self.breaks = \
             {"set_stage_init":  {"src_files": "sequence"},
+             "clean_fasta"      {"seq":       "sequence"},
              "alphafold":       {"seq":       "sequence"},
              "set_stage_init2": {"src_dir":   "sequence_base"}}          
 
