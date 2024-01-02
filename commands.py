@@ -190,7 +190,7 @@ class Commands(object):
             if line[0] != ">":
                 sequence += line.replace("\n", "")
                 
-        terms, loops = self.make_pir_identify(lines_pdb, kwargs["tgt2"])  
+        terms, loops = self.make_pir_identify(kwargs["pdb"], lines_pdb, kwargs["tgt2"])  
         if len(terms) or len(loops) != 0:
             self.mode = "run"
         
@@ -235,7 +235,7 @@ class Commands(object):
         tgt1.close()
         tgt3.close()
 
-    def make_pir_identify(self, lines_pdb, tgt):
+    def make_pir_identify(self, pdb, lines_pdb, tgt):
         tgt2 = open(os.path.join(self.work_dir, tgt), "w")
         
         chain = []
@@ -243,10 +243,11 @@ class Commands(object):
         loops = []
         terms = []
         
-        nterm_line = lines_pdb[0]
-        cterm_line = lines_pdb[len(lines_pdb)-3]
-        nterm = int("".join(nterm_line[22:26]))
-        cterm = int("".join(cterm_line[22:26]))
+        p = PDBParser()
+        s = p.get_structure("A", os.path.join(self.work_dir, pdb))
+        residues = list(s.get_residues())
+        nterm = residues[0].get_id()[1]
+        cterm = residues[-1].get_id()[1]
 
         for line in lines_pdb:
             # Only res with low model confidence (pLDDT <= 70)
@@ -401,11 +402,12 @@ class Commands(object):
 
         for line in lines:
             try: 
-                pLDDT = line[60:66]
-                res = line[22:26]
-                if res not in res_list:
-                    res_list.append(res)
-                    conf_list.append(float(pLDDT))
+                if line[:4] == "ATOM":
+                    pLDDT = line[60:66]
+                    res = line[22:26]
+                    if res not in res_list:
+                        res_list.append(res)
+                        conf_list.append(float(pLDDT))
 
             except: IndexError
 
