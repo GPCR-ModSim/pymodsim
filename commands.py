@@ -588,13 +588,14 @@ class Wrapper(object):
         return command, stdin
 
     def _mode_alphafold(self, cmd, **kwargs):
-        command = ["singularity", "run"]
+        command = ["apptainer", "exec"]
         command.extend(["--nv"])
         command.extend(["-B", self.ALPHAFOLD_DATA_PATH + ":/data"])
         command.extend(["-B", self.ALPHAFOLD_MODELS])
         command.extend(["-B", self.work_dir + ":/output"])
-        command.extend(["-B", ".:/etc"])
-        command.extend(["--pwd", "$TMPDIR", self.ALPHAFOLD_SIF])
+        command.append(self.ALPHAFOLD_SIF)
+        command.append("python")
+        command.append("/app/alphafold/run_alphafold.py")
         command.extend(["--fasta_paths=" + os.path.join("/output/sequences/", os.path.basename(cmd["options"]["seq"]))])
         command.extend(["--data_dir=/data"])
         command.extend(["--output_dir=/output"])
