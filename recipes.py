@@ -37,6 +37,44 @@ class Homology(object):
 
 
 ##########################################################################
+#                 StateHomology (AlphaFold MultiState)                   #
+##########################################################################
+
+class StateHomology(object):
+    def __init__(self, **kwargs):
+        self.steps = ["clean_fasta", "afms", "get_model", "set_end"]
+
+        self.recipe = \
+            {"clean_fasta":     {"command":    "clean_fasta",  # 1
+                                 "options":   {"seq":  ""}},
+
+             "afms":            {"afms":       "afms",  # 2
+                                 "options":   {"seq":        "",
+                                               "out_dir":    "",
+                                               "state":      "",
+                                               "model":      ""}},
+
+             "get_model":       {"command":    "copy_file",  # 3
+                                 "options":   {"src": "",
+                                               "tgt": ""}},
+
+             "set_end":         {"command":    "set_stage_init",  # 4
+                                 "options":   {"src_dir":    "",
+                                               "src_files":  "",
+                                               "tgt_dir":    "finalOutput"}}}
+
+        self.breaks = \
+            {"clean_fasta":     {"seq":       "sequence"},
+             "afms":            {"seq":        "sequence",
+                                 "out_dir":    "afms_dir",
+                                 "state":      "state",
+                                 "model":      "afms_model"},
+             "get_model":       {"src":       "afms_model",
+                                 "tgt":       "pdb_2"},
+             "set_end":         {"src_files": "pdb_2"}}
+
+
+##########################################################################
 #                 ModPrep                                                #
 ##########################################################################
 
@@ -142,7 +180,7 @@ class Orientation(object):
 ##########################################################################
 class CollectResults(object):
     def __init__(self, **kwargs):
-        self.steps = ["set_end", "tar_out"]
+        self.steps = ["set_end", "set_state", "tar_out"]
 
         self.recipe = \
             {"set_end":         {"command":    "set_stage_init",  # 1
@@ -150,8 +188,14 @@ class CollectResults(object):
                                                "src_files": ["pymodsim.log"],
                                                "tgt_dir":    "finalOutput"}},
                 
-             "tar_out":         {"command": "tar_out",  # 2
+             "set_state":       {"command":    "copy_file",  # 2
+                                 "options":   {"src": "",
+                                               "tgt": ""}},
+
+             "tar_out":         {"command": "tar_out",  # 3
                                 "options": {"src_dir": "finalOutput",
                                             "tgt":     "Model_output.tgz"}}}
             
-        self.breaks = {}
+        self.breaks = \
+            {"set_state":       {"src":       "state_src",
+                                 "tgt":       "state_tgt"}}
