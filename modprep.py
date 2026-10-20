@@ -1,29 +1,34 @@
 import modeller
 from modeller import automodel
+from modeller.selection import Selection
 import sys
-
 
 def run_modeller(**kwargs):
     """
     Refine protein structure using MODELLER
     """
     default_stdout = sys.stdout
-    
+
     sys.stdout = open("pymodsim.log", "a")
-    
+
     if kwargs["mode"] == "run":
         modeller.log.minimal()
         env = modeller.Environ()
         env.io.atom_files_directory = ['.', '../atom_files']
-        a = automodel.AutoModel(env,
-                               alnfile  = kwargs["alnfile"],  
-                               knowns   = kwargs["knowns"],     
-                               sequence = 'refined')
-        a.starting_model= 1              
-        a.ending_model  = 1              
-        a.md_level = None                 
-        
+        aln = modeller.Alignment(env, file=kwargs["alnfile"])
+
+        class EditedRegionsOnly(automodel.AutoModel):
+            def select_atoms(self):
+                # Only linkers, cut ends and trimmed termini (+1 residue each side) move
+                return Selection(self.loops(aln, minlength=1, maxlength=10000,
+                                            insertion_ext=1, deletion_ext=1,
+                                            include_termini=True))
+
+        a = EditedRegionsOnly(env, alnfile=kwargs["alnfile"],
+                              knowns=kwargs["knowns"], sequence='refined')
+        a.starting_model = 1
+        a.ending_model = 1
+        a.md_level = None
         a.make()
-        
+
     sys.stdout = default_stdout
-    
