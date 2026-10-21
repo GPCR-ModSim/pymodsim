@@ -19,10 +19,15 @@ def run_modeller(**kwargs):
 
         class EditedRegionsOnly(automodel.AutoModel):
             def select_atoms(self):
-                # Only linkers, cut ends and trimmed termini (+1 residue each side) move
+                # Linkers and cut loop ends (+1 residue each side) move; everything else keeps
+                # the input coordinates. loops() does not report trimmed termini, so the first
+                # and last two residues always move.
+                res = self.residues
+                n = len(res)
                 return Selection(self.loops(aln, minlength=1, maxlength=10000,
                                             insertion_ext=1, deletion_ext=1,
-                                            include_termini=True))
+                                            include_termini=True),
+                                 [res[0], res[1], res[n - 2], res[n - 1]])
 
         a = EditedRegionsOnly(env, alnfile=kwargs["alnfile"],
                               knowns=kwargs["knowns"], sequence='refined')
