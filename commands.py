@@ -223,27 +223,31 @@ class Commands(object):
         lines_seq = seq.readlines()
         pdb.close()
         seq.close()
-        
+
         sequence = ""
         for line in lines_seq:
             if line[0] != ">":
                 sequence += line.replace("\n", "")
-                
+
         terms, loops = self.make_pir_identify(kwargs["pdb"], lines_pdb, kwargs["tgt2"])  
-        if len(terms) or len(loops) != 0:
-            self.mode = "run"
-        
         mod_seq, tmpl_seq = self.make_pir_modify(terms, loops, lines_pdb, sequence)
+
+        # Run Modeller only if something is modified (tail cut or loop shortened).
+        # If a low confidence loop is kept (because the Alanine equivalent is the same
+        # length or longer) then Modeller does not run.
+
+        if "-" in mod_seq or "-" in tmpl_seq:
+            self.mode = "run"
 
         tgt1 = open(os.path.join(self.work_dir, kwargs["tgt1"]), "w") 
         tgt3 = open(os.path.join(self.work_dir, kwargs["tgt3"]), "w")
-        
+
         tgt1.write(f'>P1;{kwargs["pdb"]}\n')
         tgt1.write(f'structure:{kwargs["pdb"]}:FIRST:@:LAST:@::::\n')
 
         new_line = 0
         for aa in tmpl_seq:
-            tgt1.write(aa)            
+            tgt1.write(aa)
             new_line += 1
             if (new_line % 60) == 0:
                 tgt1.write("\n")
