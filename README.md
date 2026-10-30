@@ -150,7 +150,7 @@ To install **PyModSim** follow these steps:
     MultiState environment, whose script, at the time of writing, was in the
     following path:
 
-        AFMS_SCRIPT = "/home/gpcradmin/bin/alphafold_run.sh"
+        AFMS_SCRIPT = "/path/to/alphafold_run.sh"
         AFMS_UNSET_ENV = ["PYTHONPATH", "LD_LIBRARY_PATH"]
 
     Modes 0, 1, 2, 3 and 23 do not need these settings.
