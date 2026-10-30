@@ -5,6 +5,7 @@ import math
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 
 import broker
@@ -16,10 +17,10 @@ import settings
 class Commands(object):
     def __init__(self, *args, **kwargs):
         self.broker = broker.Printing()
-        self.wrapper = Wrapper()        
+        self.wrapper = Wrapper()
         self.work_dir = os.getcwd()
         self.repo_dir = self.wrapper.repo_dir
-        self.mode = "skip"        
+        self.mode = "skip"
 
         if kwargs["sequence"]:
             self.sequence = kwargs["sequence"]
@@ -27,20 +28,40 @@ class Commands(object):
         if kwargs["pdb"]:
             self.pdb_2 = kwargs["pdb"]
         else:
-            self.pdb_2 = "ranked_0.pdb"            
+            self.pdb_2 = "ranked_0.pdb"
         if kwargs["pdb"] and kwargs["nstep"] != "23":
             self.pdb_3 = kwargs["pdb"]
             self.pdb_3out = kwargs["pdb"][:-4] + "out.pdb"
         else:
             self.pdb_3 = "refined.B99990001.pdb"
             self.pdb_3out = "refined.B99990001out.pdb"
+
+        self.nstep = kwargs["nstep"]
+        self.state = kwargs.get("state") or ""
+
+        if self.nstep in {"10", "11"}:
+            # AFMS_SCRIPT ... GPCR <state> writes <afms_dir>/<state>_model.pdb
+            self.afms_dir = self.sequence_base + "_afms"
+            self.afms_model = os.path.join(self.afms_dir, self.state + "_model.pdb")
+
+        # Copy of the final model named after the state (-a), for the web server
+        self.state_src = ""
+        self.state_tgt = ""
+        if self.state:
+            if self.nstep == "11":
+                self.state_src = self.pdb_2
+                self.state_tgt = os.path.join("finalOutput", self.state + "_model.pdb")
+            else:
+                self.state_src = "homology.pdb"
+                self.state_tgt = os.path.join("finalOutput", self.state + "_homology.pdb")
+
         self.Nterm = kwargs["Nterm"]
         self.Cterm = kwargs["Cterm"]
         self.loop = kwargs["loop"]
         self.loop_fill = kwargs["loop_fill"]
         self.topology = kwargs["topology"]
         self.chain = kwargs["chain"]
-        
+
         logging.basicConfig(filename='pymodsim.log',
                             format='%(asctime)s %(message)s',
                             datefmt='%m/%d/%Y %I:%M:%S',
@@ -55,7 +76,7 @@ class Commands(object):
 
         parser = PDBParser()
         fixed = parser.get_structure("fixed", os.path.join(self.work_dir, kwargs["src"]))
-        
+
         if os.path.exists(os.path.join(self.work_dir, kwargs["pdb"])):
             moving = parser.get_structure("moving", os.path.join(self.work_dir, kwargs["pdb"]))
         else:
@@ -116,14 +137,32 @@ class Commands(object):
         src = open(os.path.join(self.work_dir, kwargs["src"]), "r")
         lines_src = src.readlines()
         src.close()
-        
+
         tgt = open(os.path.join(self.work_dir, kwargs["tgt"]), "w") 
 
         for line in lines_src:
             if line[0:6] != "HETATM":
                 tgt.write(line)
-                
+
         tgt.close()
+
+    def copy_file(self, **kwargs):
+        """
+        copy_file: Copy one file to a new name (skipped if src is empty or missing)
+        """
+        if not kwargs["src"]:
+            return
+
+        src = os.path.join(self.work_dir, kwargs["src"])
+        tgt = os.path.join(self.work_dir, kwargs["tgt"])
+
+        if not os.path.isfile(src):
+            logging.debug("copy_file: " + src + " not found, nothing copied")
+            return
+
+        if not os.path.isdir(os.path.dirname(tgt)): os.mkdir(os.path.dirname(tgt))
+        shutil.copy(src, tgt)
+
 
     def get_protein(self, **kwargs):
         """
@@ -131,7 +170,7 @@ class Commands(object):
         """
         protein_res_names = ["ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", 
                              "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL", ]
-        
+
         tgt = open(os.path.join(self.work_dir, kwargs["tgt"]), "w")
 
         if os.path.exists(os.path.join(self.work_dir, kwargs["pdb"])):
@@ -144,8 +183,8 @@ class Commands(object):
             for line in src:
                 if line.startswith("TER"):
                     tgt.write(line)
-                    chain += 1    
-                      
+                    chain += 1
+
                 if line.startswith("ATOM") or line.startswith("HETATM"):
                     # add protein chain IDs
                     if line[21] == ' ':
@@ -443,49 +482,68 @@ class Commands(object):
             
         for i in range(len(conf_list)):
             tgt.write(str(res_list[i]) + "\t" + str(conf_list[i]) + "\n")          
-            
+
         pdb.close()
         tgt.close()
 
-      
+
     def run_recipe(self):
         """
-        run_recipe: Run selected recipes 
-        """        
+        run_recipe: Run selected recipes
+        """
         for n, command_name in enumerate(self.recipe.steps):
             command = self.recipe.recipe[command_name]
-            
+
             if command_name in self.recipe.breaks.keys():
                 command["options"] = self.set_options(command["options"],
-                                     self.recipe.breaks[command_name])            
-            
+                                     self.recipe.breaks[command_name])
+
             self.broker.dispatch("{0} Step ({1}/{2}): {3}.".format(
                 self.recipe.__class__.__name__,
                 n + 1, len(self.recipe.steps),
                 command_name))
-            
+
             if "alphafold" in command:
                 out, err = self.wrapper.run_command(prgm="alphafold", cmd=command)
-                command, stdin = self.wrapper.generate_command(prgm="alphafold", cmd=command)                
+                command, stdin = self.wrapper.generate_command(prgm="alphafold", cmd=command)
                 logging.debug(" ".join(command))
                 logging.debug(err.decode().strip('\n'))
                 logging.debug(out.decode().strip('\n'))
-                
+
+            elif "afms" in command:
+                # AF MultiState output goes straight into pymodsim.log
+                afms_command, stdin = self.wrapper.generate_command(prgm="afms", cmd=command)
+                logging.debug(" ".join(afms_command))
+                try:
+                    self.wrapper.run_command(prgm="afms", cmd=command)
+                except OSError as e:
+                    logging.error("AlphaFold MultiState could not be started: " + str(e))
+                    self.wrapper.returncode = 1
+
+                model = os.path.join(self.work_dir, command["options"]["model"])
+                if self.wrapper.returncode != 0 or not os.path.isfile(model):
+                    msg = ("AlphaFold MultiState failed (exit code {0}, expected "
+                           "model {1}). Stopping PyModSim.".format(
+                               self.wrapper.returncode, model))
+                    logging.error(msg)
+                    self.broker.dispatch(msg)
+                    sys.exit(1)
+
             elif "ppm" in command:
                 out, err = self.wrapper.run_command(prgm="ppm", cmd=command)
                 command, stdin = self.wrapper.generate_command(prgm="ppm", cmd=command)
                 logging.debug(command + " < " + stdin.name)
                 logging.debug(err.decode().strip('\n'))
                 logging.debug(out.decode().strip('\n'))
-            
+
             else:
                 # ...or run a local function
                 logging.debug(command)
-                try: 
+                try:
                     f = getattr(self, command["command"])
                 except AttributeError:
                     f = getattr(modprep, command["command"])
-                
+
                 logging.debug("FUNCTION: " + str(f.__doc__).strip())                
                 if ("options") in command:
                     f(**command["options"])
@@ -497,7 +555,7 @@ class Commands(object):
         select_recipe: Select the recipes for each step
         """
         self.recipe = getattr(recipes, stage)()
-         
+
     def set_options(self, options, breaks):
         """
         set_options: Set break options from recipe
@@ -522,7 +580,7 @@ class Commands(object):
         if "src_files" in kwargs.keys():
             if not isinstance(kwargs["src_files"], list):
                 kwargs["src_files"] = kwargs["src_files"].split(" ")
-            
+
             for src_file in kwargs["src_files"]:
                 if (os.path.isfile(os.path.join(kwargs["src_dir"], src_file))):
                     shutil.copy(os.path.join(kwargs["src_dir"], src_file),
@@ -541,13 +599,13 @@ class Commands(object):
         t_f = tarfile.open(tgt, mode="w:gz")
         base_dir = os.getcwd()
         os.chdir(src_dir) # To avoid the include of all parent dirs
-        
+
         for to_tar in os.listdir(os.path.join(base_dir, src_dir)):
             t_f.add(to_tar)
-            
+
         t_f.close()
         os.chdir(base_dir)
-        
+
 
 class Wrapper(object):
     def __init__(self, *args, **kwargs):
@@ -566,9 +624,16 @@ class Wrapper(object):
         self.OBSOLETE_PDBS_PATH = settings.OBSOLETE_PDBS_PATH
         self.UNICLUST30_DATABASE_PATH = settings.UNICLUST30_DATABASE_PATH
         self.UNIREF90_DATABASE_PATH = settings.UNIREF90_DATABASE_PATH
-        
+
+        #AlphaFold MultiState variables
+        # getattr: a settings.py without these lines must not break -n 0-3/23
+        self.AFMS_SCRIPT = getattr(settings, "AFMS_SCRIPT", "")
+        self.AFMS_UNSET_ENV = getattr(settings, "AFMS_UNSET_ENV", [])
+
         #PPM variables:
         self.PPM_PATH = settings.PPM_PATH
+
+        self.returncode = 0
 
     def generate_command(self, prgm, cmd):
         """
@@ -577,14 +642,17 @@ class Wrapper(object):
         a string "command -with flags"
         """
         stdin = ""
-        
+
         if prgm == "alphafold":
             command = self._mode_alphafold(cmd=cmd)
-            
+
+        if prgm == "afms":
+            command = self._mode_afms(cmd=cmd)
+
         if prgm == "ppm":
             command, stdin = self._mode_ppm(cmd=cmd)
             self.cmd_type = "input"
-        
+
         return command, stdin
 
     def _mode_alphafold(self, cmd, **kwargs):
@@ -609,17 +677,46 @@ class Wrapper(object):
         command.extend(["--max_template_date=" + cmd["options"]["max_template_date"]])
         command.extend(["--model_preset=monomer"])
         command.extend(["--db_preset=full_dbs"])
-        
+
         return command
-    
-    def _mode_ppm(self, cmd, **kwargs):       
+
+    def _mode_afms(self, cmd, **kwargs):
+        # AFMS_SCRIPT <fasta> <output_dir> GPCR <active|inactive>
+        command = [self.AFMS_SCRIPT]
+        command.append(os.path.join(self.work_dir, cmd["options"]["seq"]))
+        command.append(os.path.join(self.work_dir, cmd["options"]["out_dir"]))
+        command.append("GPCR")
+        command.append(cmd["options"]["state"])
+
+        return command
+
+    def _mode_ppm(self, cmd, **kwargs):
         command = os.path.join(self.PPM_PATH, "immers")
         stdin = open(os.path.join(self.work_dir, cmd["options"]["inp"]), "r")
-        
+
         return command, stdin
     
     def run_command(self, prgm, cmd):
         command, stdin = self.generate_command(prgm=prgm, cmd=cmd)
+
+        if prgm == "afms":
+            # Runs for hours: write its output to pymodsim.log while it runs,
+            # without the MODELLER/PPM paths set by bin/postactivate
+            env = dict(os.environ)
+            for var in self.AFMS_UNSET_ENV:
+                env.pop(var, None)
+            log = open(os.path.join(self.work_dir, "pymodsim.log"), "a")
+            try:
+                p = subprocess.Popen(command,
+                                     stdout=log,
+                                     stderr=subprocess.STDOUT,
+                                     env=env)
+                p.wait()
+            finally:
+                log.close()
+            self.returncode = p.returncode
+
+            return b"", b""
 
         if self.cmd_type == "input":
             p = subprocess.Popen(command,
@@ -632,6 +729,6 @@ class Wrapper(object):
                                  stderr=subprocess.PIPE)       
 
         out, errs = p.communicate()
-
+        self.returncode = p.returncode
         return out, errs
     

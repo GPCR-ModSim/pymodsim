@@ -21,6 +21,7 @@ class Run(object):
         self.loop_fill = kwargs.get("loop_fill") or ""
         self.topology = kwargs.get("topology")
         self.chain = kwargs.get("chain")
+        self.state = kwargs.get("state") or ""
 
         self.cmd = commands.Commands(nstep=self.nstep,
                                      sequence=self.sequence,
@@ -30,8 +31,9 @@ class Run(object):
                                      loop=self.loop,
                                      loop_fill=self.loop_fill,
                                      topology=self.topology,
-                                     chain=self.chain)
-        
+                                     chain=self.chain,
+                                     state=self.state)
+
     def clean(self):
         """
         Cleans all previously generated files
@@ -39,10 +41,10 @@ class Run(object):
         # re-write log file
         f = open("pymodsim.log", "w")
         f.close()
-        
+
         to_unlink = []
         dirs_to_unlink = ["finalOutput"]
-        
+
         if self.nstep in {"0", "1"}:
             unlink_files = ["ld.so.cache", "ranked_0.pdb"]
             for target in unlink_files:
@@ -50,16 +52,24 @@ class Run(object):
             unlink_dirs = [self.sequence[:-6], "sequences"]
             for target in unlink_dirs:
                 dirs_to_unlink.append(target)
-        
-        if self.nstep in {"0", "2", "23"}:
+
+        if self.nstep in {"10", "11"}:
+            unlink_files = ["ranked_0.pdb"]
+            for target in unlink_files:
+                to_unlink.append(target)
+            unlink_dirs = [self.sequence[:-6] + "_afms"]
+            for target in unlink_dirs:
+                dirs_to_unlink.append(target)
+
+        if self.nstep in {"0", "2", "23", "10"}:
             unlink_files = ["alignment.pir", "alignment.txt", 
                             "plot_confidence.txt", "refined.B99990001.pdb", 
                             "refined.D00000001", "refined.ini", "refined.rsr",
                             "refined.sch", "refined.V99990001", "refinement.txt"]
             for target in unlink_files:
                 to_unlink.append(target)
-   
-        if self.nstep in {"0", "23", "3"}:
+
+        if self.nstep in {"0", "23", "3", "10"}:
             unlink_files = [self.pdb[:-4]+"out.pdb", "2membranes.inp", 
                             "datapar1", "datapar2", "datasub1", "fort.4", 
                             "fort.41", "homology.pdb", 
@@ -87,12 +97,16 @@ class Run(object):
             steps = ["ModPrep", "Orientation", "CollectResults"]
         if self.nstep == "3":
             steps = ["Orientation", "CollectResults"]
+        if self.nstep == "10":
+            steps = ["StateHomology", "ModPrep", "Orientation", "CollectResults"]
+        if self.nstep == "11":
+            steps = ["StateHomology", "CollectResults"]
 
         for step in steps:
             self.cmd.select_recipe(stage=step)
-            self.cmd.run_recipe()        
+            self.cmd.run_recipe()
 
-        
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='pymodsim',
@@ -101,33 +115,37 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--version',
                         action='version',
                         version='%(prog)s 1.0')
-    
+
     parser.add_argument('-n', "--nstep",
                         dest = "nstep",
+                        choices = ["0", "1", "2", "3", "23", "10", "11"],
+                        metavar = "NSTEP",
                         help = "PyModSim steps you wish to execute. This \
             allowes you modify the model preparation steps - see documentation \
             Options: (0) Full, (1) Homology|AlphaFold, (2) ModPrep|MODELLER, \
-            (3) Orientation|PPM, and (23) ModPrep+Orientation",
+            (3) Orientation|PPM, (23) ModPrep+Orientation, (10) Full with \
+            StateHomology|AlphaFold MultiState, and (11) StateHomology|AlphaFold \
+            MultiState. -n 10 and 11 require -s and -a",
                         default = "0")
-        
+
     parser.add_argument('-s', "--seq",
                         dest = "sequence",
                         help = "Name of the sequence for which to create an \
-            homology model. -s is only required if -n = 0, 1 or 2. Use the fasta \
+            homology model. -s is only required if -n = 0, 1, 2, 10, 11 or 23. Use the fasta \
             extension. (example: -s myseq.fasta)")
 
     parser.add_argument('-p', "--pdb",
                         dest = "pdb",
                         help = "Name of the protein to process. -p is only required \
             if -n = 2 or 3. Use the pdb extension. (example: -p myprot.pdb)")
-            
+
     parser.add_argument('-N', "--Nterm",
                         dest = "Nterm",
                         help = "Residue number at which to cut the N-terminus. \
             Note: the chain up AND including the given residue will be removed. \
             -N is only used if -n = 2. If you wish to use the default cutoff, \
-            don't specify -N. If you wish not to cut the N-term: set -N = 0")            
-            
+            don't specify -N. If you wish not to cut the N-term: set -N = 0")
+
     parser.add_argument('-C', "--Cterm",
                         dest = "Cterm",
                         help = "Residue number at which to cut the C-terminus. \
@@ -163,9 +181,29 @@ if __name__ == "__main__":
                         help = "Only use if -n = 3 (i.e. only PPM). If more \
             than 1 chain, add a comma-seperated list of the chain identifiers. \
             (example: -c A,B,C)",
-                        default = "A")          
-    
+                        default = "A")
+
+    parser.add_argument('-a', "--state",
+                        dest = "state",
+                        type = str.lower,
+                        choices = ["active", "inactive"],
+                        help = "Receptor state to model with AlphaFold \
+            MultiState (Active or Inactive state). -a is required \
+            if -n = 10 or 11 is selected. With -n 23 it is optional and only adds a copy \
+            of the final model named <state>_homology.pdb. (example: -a active)")
+
     args = parser.parse_args()
+
+    if args.nstep in {"10", "11"}:
+        if not args.sequence or not args.sequence.endswith(".fasta"):
+            parser.error("-n {0} requires -s with a .fasta file".format(args.nstep))
+        if not args.state:
+            parser.error("-n {0} requires -a active or -a inactive".format(args.nstep))
+        if args.pdb:
+            parser.error("-p cannot be used with -n {0}: the model comes from "
+                         "AlphaFold MultiState".format(args.nstep))
+    elif args.state and args.nstep != "23":
+        parser.error("-a is only used with -n 10, 11 or 23")
 
     run = Run(sequence = args.sequence,
               nstep = args.nstep,
@@ -175,7 +213,8 @@ if __name__ == "__main__":
               loop = args.loop,
               loop_fill = args.loop_fill,
               topology = args.topology,
-              chain = args.chain)
+              chain = args.chain,
+              state = args.state)
 
     run.clean()
     run.modsim()
