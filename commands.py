@@ -633,6 +633,8 @@ class Wrapper(object):
         self.OBSOLETE_PDBS_PATH = settings.OBSOLETE_PDBS_PATH
         self.UNICLUST30_DATABASE_PATH = settings.UNICLUST30_DATABASE_PATH
         self.UNIREF90_DATABASE_PATH = settings.UNIREF90_DATABASE_PATH
+        # getattr: optional; empty = use the hh-suite inside ALPHAFOLD_SIF
+        self.ALPHAFOLD_HHSUITE_DIR = getattr(settings, "ALPHAFOLD_HHSUITE_DIR", "")
 
         #AlphaFold MultiState variables
         # getattr: a settings.py without these lines must not break -n 0-3/23
@@ -670,6 +672,8 @@ class Wrapper(object):
         command.extend(["-B", self.ALPHAFOLD_DATA_PATH + ":/data"])
         command.extend(["-B", self.ALPHAFOLD_MODELS])
         command.extend(["-B", self.work_dir + ":/output"])
+        if self.ALPHAFOLD_HHSUITE_DIR:
+            command.extend(["-B", self.ALPHAFOLD_HHSUITE_DIR])
         command.append(self.ALPHAFOLD_SIF)
         command.append("python")
         command.append("/app/alphafold/run_alphafold.py")
@@ -682,7 +686,10 @@ class Wrapper(object):
         command.extend(["--template_mmcif_dir=" + self.TEMPLATE_MMCIF_DIR])
         command.extend(["--obsolete_pdbs_path=" + self.OBSOLETE_PDBS_PATH])
         command.extend(["--uniclust30_database_path=" + self.UNICLUST30_DATABASE_PATH])
-        command.extend(["--uniref90_database_path=" + self.UNIREF90_DATABASE_PATH]) 
+        command.extend(["--uniref90_database_path=" + self.UNIREF90_DATABASE_PATH])
+        if self.ALPHAFOLD_HHSUITE_DIR:
+            command.extend(["--hhblits_binary_path=" + os.path.join(self.ALPHAFOLD_HHSUITE_DIR, "bin", "hhblits")])
+            command.extend(["--hhsearch_binary_path=" + os.path.join(self.ALPHAFOLD_HHSUITE_DIR, "bin", "hhsearch")])
         command.extend(["--max_template_date=" + cmd["options"]["max_template_date"]])
         command.extend(["--model_preset=monomer"])
         command.extend(["--db_preset=full_dbs"])
