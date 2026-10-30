@@ -223,27 +223,31 @@ class Commands(object):
         lines_seq = seq.readlines()
         pdb.close()
         seq.close()
-        
+
         sequence = ""
         for line in lines_seq:
             if line[0] != ">":
                 sequence += line.replace("\n", "")
-                
+
         terms, loops = self.make_pir_identify(kwargs["pdb"], lines_pdb, kwargs["tgt2"])  
-        if len(terms) or len(loops) != 0:
-            self.mode = "run"
-        
         mod_seq, tmpl_seq = self.make_pir_modify(terms, loops, lines_pdb, sequence)
+
+        # Run Modeller only if something is modified (tail cut or loop shortened).
+        # If a low confidence loop is kept (because the Alanine equivalent is the same
+        # length or longer) then Modeller does not run.
+
+        if "-" in mod_seq or "-" in tmpl_seq:
+            self.mode = "run"
 
         tgt1 = open(os.path.join(self.work_dir, kwargs["tgt1"]), "w") 
         tgt3 = open(os.path.join(self.work_dir, kwargs["tgt3"]), "w")
-        
+
         tgt1.write(f'>P1;{kwargs["pdb"]}\n')
         tgt1.write(f'structure:{kwargs["pdb"]}:FIRST:@:LAST:@::::\n')
 
         new_line = 0
         for aa in tmpl_seq:
-            tgt1.write(aa)            
+            tgt1.write(aa)
             new_line += 1
             if (new_line % 60) == 0:
                 tgt1.write("\n")
@@ -375,72 +379,77 @@ class Commands(object):
                             low_conf[0], low_conf[-1]))
                         self.broker.dispatch("Low-confidence loop detected from {0} to {1}".format(
                             low_conf[0], low_conf[-1]))
-                    
-                    
+
         loops.reverse()
-        
+
         tgt2.close()
 
         return terms, loops
-    
+
     def make_pir_modify(self, terms, loops, lines_pdb, sequence):
-        mod_seq = sequence
+        # Edit by position (residue n is sequence [n-1]).
+        mod_seq = list(sequence)
         tmpl_seq = sequence
-        
+
         for term in terms:
-            term_seq = sequence[term[0]-1:term[-1]]
-            gaps =  len(term_seq) * "-"
-            
-            mod_seq = mod_seq.replace(term_seq, gaps)
-        
-        for loop in loops:                       
+            for i in range(term[0] - 1, term[-1]):
+                mod_seq[i] = "-"
+        mod_seq = "".join(mod_seq)
+
+        # From C-term to N-term, so an insertion never shifts a loop still to do
+        for loop in sorted(loops, key=lambda l: l[0], reverse=True):
             for line in lines_pdb:
                 if line[:4] == "ATOM":
-                    if int(line[22:26]) == loop[0] and "".join(line[11:17]).strip() == "C":
-                        start = [float(line[31:38]), float(line[39:46]), float(line[47:54])]
-                    if int(line[22:26]) == loop[-1] and "".join(line[11:17]).strip() == "N":
-                        end = [float(line[31:38]), float(line[39:46]), float(line[47:54])]
-        
-            aa_dist = float(self.loop_fill)           
+                    if int(line[22:26]) == loop[0] and line[12:16].strip() == "C":
+                        start = [float(line[30:38]), float(line[38:46]), float(line[46:54])]
+                    if int(line[22:26]) == loop[-1] and line[12:16].strip() == "N":
+                        end = [float(line[30:38]), float(line[38:46]), float(line[46:54])]
+
+            aa_dist = float(self.loop_fill)
             x = abs(start[0] - end[0])
             y = abs(start[1] - end[1])
             z = abs(start[2] - end[2])
             dist = math.sqrt(x*x + y*y + z*z)
-            num_aa = math.ceil(dist / aa_dist)     
-            
+            num_aa = math.ceil(dist / aa_dist)
+
             if num_aa % 2 == 0:
                 keep_res = int(num_aa / 2 - 1)
                 ala_count = 2
-            else: 
-                keep_res = int((num_aa - 1) / 2 - 1) 
+            else:
+                keep_res = int((num_aa - 1) / 2 - 1)
                 ala_count = 3
-            
-            # Leaving the first and the last AA out of the loop (for better results in 
-            # MODELLER)
+
+            # Leaving the first and the last AA out of the loop (for better results in
+            # MODELLER). loop_seq[-0:] would be the whole loop, so keep >= 0 explicitly.
+            keep = max(keep_res - 1, 0)
             loop_seq = sequence[loop[0]:loop[-2]]
-            loop_mod = loop_seq[:keep_res-1] + "A"*ala_count + loop_seq[-1*(keep_res-1):]
+            if 2 * keep + ala_count >= len(loop_seq):
+                logging.debug("Loop {0}-{1} not shortened: same residue count"
+                              .format(loop[0], loop[-1]))
+                continue
+            loop_mod = loop_seq[:keep] + "A"*ala_count + (loop_seq[-keep:] if keep else "")
             gaps = loop_mod + len(loop_seq) * "-"
-            
-            mod_seq = mod_seq.replace(loop_seq, gaps)
+
+            mod_seq = mod_seq[:loop[0]] + gaps + mod_seq[loop[-2]:]
             tmpl_seq = tmpl_seq[:loop[0]] + len(loop_mod) * "-" + tmpl_seq[loop[0]:]
-            
+
         mod_seq += "*"
         tmpl_seq += "*"
 
         return mod_seq, tmpl_seq
-      
+
     def plot_conf(self, **kwargs):
         """
         plot_conf: Create an AF confidence plot (res_ID vs pLDDT)
         """
         pdb = open(kwargs["pdb"], "r")
         lines = pdb.readlines()
-        
+
         res_list = []
         conf_list = []
 
         for line in lines:
-            try: 
+            try:
                 if line[:4] == "ATOM":
                     pLDDT = line[60:66]
                     res = line[22:26]
@@ -462,7 +471,7 @@ class Commands(object):
             else:
                 conf_vl += 1
 
-        avg_pLDDT = round(sum(conf_list) / len(conf_list), 2)     
+        avg_pLDDT = round(sum(conf_list) / len(conf_list), 2)
 
         per_vh = round(conf_vh / len(conf_list) * 100, 1)
         per_h = round(conf_h / len(conf_list) * 100, 1)
@@ -479,9 +488,9 @@ class Commands(object):
                   "Low (70 > pLDDT > 50):  " + str(per_l) + "%\n" + \
                   "Very low (pLDDT < 50):  " + str(per_vl) + "%\n\n" + \
                   "res_ID\tpLDDT\n")
-            
+
         for i in range(len(conf_list)):
-            tgt.write(str(res_list[i]) + "\t" + str(conf_list[i]) + "\n")          
+            tgt.write(str(res_list[i]) + "\t" + str(conf_list[i]) + "\n")
 
         pdb.close()
         tgt.close()
